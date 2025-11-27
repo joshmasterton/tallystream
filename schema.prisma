@@ -1,0 +1,134 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  emailVerified DateTime?
+  name         String?
+  passwordHash String?
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  clients      Client[]
+  projects     Project[]
+  invoices     Invoice[]
+  apiKeys      ApiKey[]
+}
+
+model Client {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  company     String?
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+  invoices    Invoice[]
+  projects    Project[]
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  client      Client?  @relation(fields: [clientId], references: [id])
+  clientId    String?
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  invoices    Invoice[]
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  client        Client        @relation(fields: [clientId], references: [id])
+  clientId      String
+  project       Project?      @relation(fields: [projectId], references: [id])
+  projectId     String?
+  invoiceNumber String
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
+  currency      String        @default("USD")
+  notes         String?
+  terms         String?
+  subtotalCents Int
+  taxCents      Int
+  discountCents Int
+  totalCents    Int
+  pdfUrl        String?
+  sentAt        DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items   InvoiceItem[]
+  payments Payment[]
+}
+
+model InvoiceItem {
+  id            String  @id @default(uuid())
+  invoice       Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId     String
+  description   String
+  quantity      Float   @default(1)
+  unitPriceCents Int
+  taxCents      Int
+  totalCents    Int
+}
+
+model Payment {
+  id                String   @id @default(uuid())
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id])
+  invoiceId         String
+  provider          String
+  providerPaymentId String?
+  amountCents       Int
+  currency          String
+  status            PaymentStatus
+  receiptUrl        String?
+  createdAt         DateTime @default(now())
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  keyHash   String
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
